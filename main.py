@@ -4,7 +4,6 @@ from typing import List, Optional, Tuple, Dict
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.animation import FuncAnimation
 import math
 from collections import deque
 
@@ -20,7 +19,6 @@ class RadarTarget:
     distance: float     # mm, pixel distance value
 
 class RD03Protocol:
-    # Previous class constants and state definitions remain the same...
     HEADER = bytes([0xAA, 0xFF, 0x03, 0x00])
     FOOTER = bytes([0x55, 0xCC])
     TARGET_DATA_SIZE = 8
@@ -60,8 +58,8 @@ class RD03Protocol:
         self.fig, self.ax = plt.subplots(subplot_kw={'projection': 'polar'})
         
         # Set plot limits for upper half only
-        self.ax.set_thetamin(0)  # Start at -90 degrees
-        self.ax.set_thetamax(180)   # End at 90 degrees
+        self.ax.set_thetamin(0)
+        self.ax.set_thetamax(180)
         
         self.ax.set_rmax(5000)
         self.ax.set_rticks([1000, 2000, 3000, 4000, 5000])
@@ -158,16 +156,8 @@ class RD03Protocol:
         except Exception as e:
             logger.error(f"Error updating plot: {e}")
 
-    def _decode_coordinate(self, value: int) -> float:
+    def _decode_raw(self, value: int) -> float:
         """Decode a coordinate value according to the protocol specification"""
-        # Check if highest bit is set (positive/negative indicator)
-        is_negative = not bool(value & 0x8000)
-        # Get absolute value (15 bits)
-        abs_value = value & 0x7FFF
-        return -abs_value if is_negative else abs_value
-
-    def _decode_speed(self, value: int) -> float:
-        """Decode a speed value according to the protocol specification"""
         # Check if highest bit is set (positive/negative indicator)
         is_negative = not bool(value & 0x8000)
         # Get absolute value (15 bits)
@@ -186,10 +176,11 @@ class RD03Protocol:
         distance = int.from_bytes(data[6:8], byteorder='little')
 
         return RadarTarget(
-            x_coord=self._decode_coordinate(x_raw),
-            y_coord=self._decode_coordinate(y_raw),
-            speed=self._decode_speed(speed_raw),
-            distance=float(distance)  # distance is unsigned
+            x_coord=self._decode_raw(x_raw),
+            y_coord=self._decode_raw(y_raw),
+            speed=self._decode_raw(speed_raw),
+            # TODO: I dont get what this does and also this should be uin16?!
+            distance=float(distance)  
         )
 
     def read_frame(self) -> List[RadarTarget]:
